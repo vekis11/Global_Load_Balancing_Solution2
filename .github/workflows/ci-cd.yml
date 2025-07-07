@@ -10,7 +10,8 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   IMAGE_NAME: sample-app
   IMAGE_TAG: ${{ github.sha }}
-  IMAGE_URI: gcr.io/${{ secrets.GCP_PROJECT_ID }}/sample-app:${{ github.sha }}
+  # Artifact Registry URI
+  IMAGE_URI: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/sample-repo/sample-app:${{ github.sha }}
 
 jobs:
   build-and-push:
@@ -35,60 +36,29 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Setup gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Authenticate with service account
+      - name: Configure Docker for Artifact Registry
         run: |
-          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "❌ GCP_SA_KEY secret is not set"
-            exit 1
-          fi
-          
-          # Debug: Check the length of the secret
-          echo "Secret length: ${#GCP_SA_KEY}"
-          
-          # Decode and verify the JSON
-          echo '${{ secrets.GCP_SA_KEY }}' | base64 -d > /tmp/service-account.json
-          
-          # Check if the file was created and has content
-          if [ ! -s /tmp/service-account.json ]; then
-            echo "❌ Service account file is empty or was not created"
-            echo "This usually means the GCP_SA_KEY secret is not properly base64-encoded"
-            exit 1
-          fi
-          
-          # Verify it's valid JSON
-          if ! python3 -m json.tool /tmp/service-account.json > /dev/null 2>&1; then
-            echo "❌ Service account file is not valid JSON"
-            echo "First few characters of decoded secret:"
-            head -c 100 /tmp/service-account.json
-            exit 1
-          fi
-          
-          echo "✅ Service account file is valid"
-          gcloud auth activate-service-account --key-file=/tmp/service-account.json
-          
-          # Verify authentication worked
-          gcloud auth list
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      - name: Configure Docker for GCR
+      - name: Create Artifact Registry repository
         run: |
-          gcloud auth configure-docker --quiet
-
-      - name: Verify secrets
-        run: |
-          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
-            echo "❌ GCP_PROJECT_ID secret is not set"
-            exit 1
+          # Check if repository exists
+          if gcloud artifacts repositories describe sample-repo --location=us-central1 --project=${{ secrets.GCP_PROJECT_ID }} --quiet 2>/dev/null; then
+            echo "Repository 'sample-repo' already exists"
+          else
+            echo "Creating repository 'sample-repo'..."
+            gcloud artifacts repositories create sample-repo \
+              --repository-format=docker \
+              --location=us-central1 \
+              --project=${{ secrets.GCP_PROJECT_ID }} \
+              --description="Sample Docker repository for CI/CD pipeline"
           fi
-          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "❌ GCP_SA_KEY secret is not set"
-            exit 1
-          fi
-          echo "✅ Secrets are properly configured"
 
       - name: Build and push Docker image
         run: |
@@ -105,44 +75,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Authenticate with service account
-        run: |
-          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "❌ GCP_SA_KEY secret is not set"
-            exit 1
-          fi
-          
-          # Debug: Check the length of the secret
-          echo "Secret length: ${#GCP_SA_KEY}"
-          
-          # Decode and verify the JSON
-          echo '${{ secrets.GCP_SA_KEY }}' | base64 -d > /tmp/service-account.json
-          
-          # Check if the file was created and has content
-          if [ ! -s /tmp/service-account.json ]; then
-            echo "❌ Service account file is empty or was not created"
-            echo "This usually means the GCP_SA_KEY secret is not properly base64-encoded"
-            exit 1
-          fi
-          
-          # Verify it's valid JSON
-          if ! python3 -m json.tool /tmp/service-account.json > /dev/null 2>&1; then
-            echo "❌ Service account file is not valid JSON"
-            echo "First few characters of decoded secret:"
-            head -c 100 /tmp/service-account.json
-            exit 1
-          fi
-          
-          echo "✅ Service account file is valid"
-          gcloud auth activate-service-account --key-file=/tmp/service-account.json
-          
-          # Verify authentication worked
-          gcloud auth list
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -156,4 +93,4 @@ jobs:
         run: terraform plan -input=false
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -input=false 
+        run: terraform apply -auto-approve -input=false
