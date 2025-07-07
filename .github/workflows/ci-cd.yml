@@ -42,7 +42,33 @@ jobs:
 
       - name: Authenticate with service account
         run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "❌ GCP_SA_KEY secret is not set"
+            exit 1
+          fi
+          
+          # Debug: Check the length of the secret
+          echo "Secret length: ${#GCP_SA_KEY}"
+          
+          # Decode and verify the JSON
           echo '${{ secrets.GCP_SA_KEY }}' | base64 -d > /tmp/service-account.json
+          
+          # Check if the file was created and has content
+          if [ ! -s /tmp/service-account.json ]; then
+            echo "❌ Service account file is empty or was not created"
+            echo "This usually means the GCP_SA_KEY secret is not properly base64-encoded"
+            exit 1
+          fi
+          
+          # Verify it's valid JSON
+          if ! python3 -m json.tool /tmp/service-account.json > /dev/null 2>&1; then
+            echo "❌ Service account file is not valid JSON"
+            echo "First few characters of decoded secret:"
+            head -c 100 /tmp/service-account.json
+            exit 1
+          fi
+          
+          echo "✅ Service account file is valid"
           gcloud auth activate-service-account --key-file=/tmp/service-account.json
 
       - name: Configure Docker for GCR
@@ -87,7 +113,29 @@ jobs:
             echo "❌ GCP_SA_KEY secret is not set"
             exit 1
           fi
+          
+          # Debug: Check the length of the secret
+          echo "Secret length: ${#GCP_SA_KEY}"
+          
+          # Decode and verify the JSON
           echo '${{ secrets.GCP_SA_KEY }}' | base64 -d > /tmp/service-account.json
+          
+          # Check if the file was created and has content
+          if [ ! -s /tmp/service-account.json ]; then
+            echo "❌ Service account file is empty or was not created"
+            echo "This usually means the GCP_SA_KEY secret is not properly base64-encoded"
+            exit 1
+          fi
+          
+          # Verify it's valid JSON
+          if ! python3 -m json.tool /tmp/service-account.json > /dev/null 2>&1; then
+            echo "❌ Service account file is not valid JSON"
+            echo "First few characters of decoded secret:"
+            head -c 100 /tmp/service-account.json
+            exit 1
+          fi
+          
+          echo "✅ Service account file is valid"
           gcloud auth activate-service-account --key-file=/tmp/service-account.json
 
       - name: Set up Terraform
