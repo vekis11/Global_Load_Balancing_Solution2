@@ -101,4 +101,4 @@ jobs:
 
 
       - name: Terraform Apply
-        run: terraform apply -var="project_id=${{ secrets.GCP_PROJECT_ID }}" -var="region=us-central1" -auto-approve -input=false 
+        run: terraform apply -auto-approve -input=false 
