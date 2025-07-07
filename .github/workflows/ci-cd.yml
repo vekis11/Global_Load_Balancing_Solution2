@@ -10,7 +10,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   IMAGE_NAME: sample-app
   IMAGE_TAG: ${{ github.sha }}
-  IMAGE_URI: gcr.io/${{ secrets.GCP_PROJECT_ID }}/sample-app:${{ github.sha }}
+  IMAGE_URI: ${{ secrets.GCP_PROJECT_ID }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/sample-repo/sample-app:${{ github.sha }}
 
 jobs:
   build-and-push:
@@ -41,9 +41,17 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Configure Docker for GCR
+      - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker --quiet
+          gcloud auth configure-docker ${{ secrets.GCP_PROJECT_ID }}-docker.pkg.dev --quiet
+
+      - name: Create Artifact Registry repository (if not exists)
+        run: |
+          gcloud artifacts repositories create sample-repo \
+            --repository-format=docker \
+            --location=us-central1 \
+            --description="Sample Docker repository" \
+            --quiet || echo "Repository already exists"
 
       - name: Verify secrets
         run: |
