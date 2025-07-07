@@ -89,8 +89,16 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
+      - name: Create terraform.tfvars
+        run: |
+          cat > terraform.tfvars << EOF
+          project_id = "${{ secrets.GCP_PROJECT_ID }}"
+          region     = "us-central1"
+          EOF
+
       - name: Terraform Plan
-        run: terraform plan -var="project_id=${{ secrets.GCP_PROJECT_ID }}" -input=false
+        run: terraform plan -input=false
+
 
       - name: Terraform Apply
-        run: terraform apply -var="project_id=${{ secrets.GCP_PROJECT_ID }}" -auto-approve -input=false
+        run: terraform apply -var="project_id=${{ secrets.GCP_PROJECT_ID }}" -var="region=us-central1" -auto-approve -input=false 
