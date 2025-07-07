@@ -70,6 +70,9 @@ jobs:
           
           echo "✅ Service account file is valid"
           gcloud auth activate-service-account --key-file=/tmp/service-account.json
+          
+          # Verify authentication worked
+          gcloud auth list
 
       - name: Configure Docker for GCR
         run: |
@@ -137,6 +140,9 @@ jobs:
           
           echo "✅ Service account file is valid"
           gcloud auth activate-service-account --key-file=/tmp/service-account.json
+          
+          # Verify authentication worked
+          gcloud auth list
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
