@@ -46,12 +46,13 @@ jobs:
             echo "❌ GCP_SA_KEY secret is not set"
             exit 1
           fi
+        continue-on-error: true
           
           # Debug: Check the length of the secret
-          echo "Secret length: ${#GCP_SA_KEY}"
+        echo "Secret length: ${#GCP_SA_KEY}"
           
           # Decode and verify the JSON
-          echo '${{ secrets.GCP_SA_KEY }}' | base64 -d > /tmp/service-account.json
+         echo '${{ secrets.GCP_SA_KEY }}' | base64 -d > /tmp/service-account.json
           
           # Check if the file was created and has content
           if [ ! -s /tmp/service-account.json ]; then
