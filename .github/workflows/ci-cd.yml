@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline (Fixed)
 
 on:
   push:
@@ -39,6 +39,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
+          export_default_credentials: true
 
       - name: Authenticate with service account
         run: |
@@ -50,8 +51,8 @@ jobs:
           # Debug: Check the length of the secret
           echo "Secret length: ${#GCP_SA_KEY}"
           
-          # Decode and verify the JSON
-          echo '${{ secrets.GCP_SA_KEY }}' | base64 -d > /tmp/service-account.json
+          # Decode and verify the JSON - use printf to handle special characters
+          printf '%s' "${{ secrets.GCP_SA_KEY }}" | base64 -d > /tmp/service-account.json
           
           # Check if the file was created and has content
           if [ ! -s /tmp/service-account.json ]; then
@@ -109,6 +110,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
+          export_default_credentials: true
 
       - name: Authenticate with service account
         run: |
@@ -120,8 +122,8 @@ jobs:
           # Debug: Check the length of the secret
           echo "Secret length: ${#GCP_SA_KEY}"
           
-          # Decode and verify the JSON
-          echo '${{ secrets.GCP_SA_KEY }}' | base64 -d > /tmp/service-account.json
+          # Decode and verify the JSON - use printf to handle special characters
+          printf '%s' "${{ secrets.GCP_SA_KEY }}" | base64 -d > /tmp/service-account.json
           
           # Check if the file was created and has content
           if [ ! -s /tmp/service-account.json ]; then
@@ -156,4 +158,4 @@ jobs:
         run: terraform plan -input=false
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -input=false 
+        run: terraform apply -auto-approve -input=false
