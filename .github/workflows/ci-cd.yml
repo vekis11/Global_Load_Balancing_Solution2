@@ -1,4 +1,4 @@
-name: CI/CD Pipeline (Alternative)
+name: CI/CD Pipeline (Simple)
 
 on:
   push:
@@ -39,11 +39,27 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Authenticate with service account
+        run: |
+          echo '${{ secrets.GCP_SA_KEY }}' | base64 -d > /tmp/service-account.json
+          gcloud auth activate-service-account --key-file=/tmp/service-account.json
 
       - name: Configure Docker for GCR
         run: |
           gcloud auth configure-docker --quiet
+
+      - name: Verify secrets
+        run: |
+          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+            echo "❌ GCP_PROJECT_ID secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "❌ GCP_SA_KEY secret is not set"
+            exit 1
+          fi
+          echo "✅ Secrets are properly configured"
 
       - name: Build and push Docker image
         run: |
@@ -64,7 +80,15 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Authenticate with service account
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "❌ GCP_SA_KEY secret is not set"
+            exit 1
+          fi
+          echo '${{ secrets.GCP_SA_KEY }}' | base64 -d > /tmp/service-account.json
+          gcloud auth activate-service-account --key-file=/tmp/service-account.json
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -78,4 +102,4 @@ jobs:
         run: terraform plan -input=false
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply -auto-approve -input=false 
