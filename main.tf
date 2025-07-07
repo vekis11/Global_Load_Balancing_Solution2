@@ -30,7 +30,7 @@ resource "google_compute_instance_template" "default" {
 resource "google_compute_instance_group_manager" "default" {
   name               = "app-mig"
   base_instance_name = "app-instance"
-  region             = var.region
+  zone               = "${var.region}-a"
   version {
     instance_template = google_compute_instance_template.default.id
   }
