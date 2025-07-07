@@ -22,7 +22,8 @@ resource "google_compute_instance_template" "default" {
   metadata_startup_script = <<-EOT
     sudo apt-get update
     sudo apt-get install -y docker.io
-    sudo docker run -d -p 80:80 ${var.project_id}-docker.pkg.dev/${var.project_id}/sample-repo/sample-app:latest
+    sudo gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+    sudo docker run -d -p 80:80 us-central1-docker.pkg.dev/${var.project_id}/sample-repo/sample-app:latest
   EOT
 }
 
