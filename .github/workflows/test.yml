@@ -1,0 +1,49 @@
+name: Test Authentication
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test Secrets
+        run: |
+          echo "Testing GitHub secrets configuration..."
+          
+          if [ -n "${{ secrets.GCP_PROJECT_ID }}" ]; then
+            echo "✅ GCP_PROJECT_ID is set"
+            echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
+          else
+            echo "❌ GCP_PROJECT_ID is NOT set"
+          fi
+          
+          if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "✅ GCP_SA_KEY is set"
+            echo "Secret length: ${#GCP_SA_KEY}"
+            
+            # Test base64 decode
+            if printf '%s' "${{ secrets.GCP_SA_KEY }}" | base64 -d > /tmp/test.json 2>/dev/null; then
+              if [ -s /tmp/test.json ]; then
+                echo "✅ Base64 decode successful"
+                echo "JSON file size: $(wc -c < /tmp/test.json) bytes"
+                
+                # Test JSON validity
+                if python3 -m json.tool /tmp/test.json > /dev/null 2>&1; then
+                  echo "✅ JSON is valid"
+                else
+                  echo "❌ JSON is invalid"
+                fi
+              else
+                echo "❌ Decoded file is empty"
+              fi
+            else
+              echo "❌ Base64 decode failed"
+            fi
+          else
+            echo "❌ GCP_SA_KEY is NOT set"
+          fi
+          
+          echo ""
+          echo "Repository: ${{ github.repository }}"
+          echo "Event: ${{ github.event_name }}"
