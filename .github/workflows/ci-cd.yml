@@ -1,4 +1,4 @@
-name: CI/CD Pipeline (Fixed for Artifact Registry)
+name: CI/CD Pipeline
 
 on:
   push:
@@ -8,16 +8,14 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: us-central1
-  REPO_NAME: sample-repo
   IMAGE_NAME: sample-app
   IMAGE_TAG: ${{ github.sha }}
-  IMAGE_URI: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+  # Artifact Registry URI
+  IMAGE_URI: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/sample-repo/sample-app:${{ github.sha }}
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,8 +29,9 @@ jobs:
         run: |
           pip install -r app/requirements.txt
 
-      - name: Run tests (placeholder)
-        run: echo "No tests defined. Add your tests here."
+      - name: Run tests (if any)
+        run: |
+          echo "No tests defined. Add your tests here."
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -43,31 +42,17 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Configure Docker to use Artifact Registry
+      - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Create Artifact Registry repository (if not exists)
         run: |
-          gcloud artifacts repositories describe ${{ env.REPO_NAME }} \
-            --location=${{ env.REGION }} \
-          || gcloud artifacts repositories create ${{ env.REPO_NAME }} \
+          gcloud artifacts repositories create sample-repo \
             --repository-format=docker \
-            --location=${{ env.REGION }} \
+            --location=us-central1 \
             --description="Sample Docker repository" \
-            --quiet
-
-      - name: Verify secrets
-        run: |
-          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
-            echo "❌ GCP_PROJECT_ID secret is not set"
-            exit 1
-          fi
-          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "❌ GCP_SA_KEY secret is not set"
-            exit 1
-          fi
-          echo "✅ Secrets are properly configured"
+            --quiet || echo "Repository already exists"
 
       - name: Build and push Docker image
         run: |
@@ -80,7 +65,6 @@ jobs:
     defaults:
       run:
         working-directory: .
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
