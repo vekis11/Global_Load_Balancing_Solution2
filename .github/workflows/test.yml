@@ -1,49 +1,96 @@
-name: Test Authentication
+name: CI/CD Pipeline
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  IMAGE_NAME: sample-app
+  IMAGE_TAG: ${{ github.sha }}
+  # Artifact Registry URI
+  IMAGE_URI: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/sample-repo/sample-app:${{ github.sha }}
 
 jobs:
-  test:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
-      - name: Test Secrets
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
         run: |
-          echo "Testing GitHub secrets configuration..."
-          
-          if [ -n "${{ secrets.GCP_PROJECT_ID }}" ]; then
-            echo "✅ GCP_PROJECT_ID is set"
-            echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
+          pip install -r app/requirements.txt
+
+      - name: Run tests (if any)
+        run: |
+          echo "No tests defined. Add your tests here."
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Create Artifact Registry repository
+        run: |
+          # Check if repository exists
+          if gcloud artifacts repositories describe sample-repo --location=us-central1 --project=${{ secrets.GCP_PROJECT_ID }} --quiet 2>/dev/null; then
+            echo "Repository 'sample-repo' already exists"
           else
-            echo "❌ GCP_PROJECT_ID is NOT set"
+            echo "Creating repository 'sample-repo'..."
+            gcloud artifacts repositories create sample-repo \
+              --repository-format=docker \
+              --location=us-central1 \
+              --project=${{ secrets.GCP_PROJECT_ID }} \
+              --description="Sample Docker repository for CI/CD pipeline"
           fi
-          
-          if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "✅ GCP_SA_KEY is set"
-            echo "Secret length: ${#GCP_SA_KEY}"
-            
-            # Test base64 decode
-            if printf '%s' "${{ secrets.GCP_SA_KEY }}" | base64 -d > /tmp/test.json 2>/dev/null; then
-              if [ -s /tmp/test.json ]; then
-                echo "✅ Base64 decode successful"
-                echo "JSON file size: $(wc -c < /tmp/test.json) bytes"
-                
-                # Test JSON validity
-                if python3 -m json.tool /tmp/test.json > /dev/null 2>&1; then
-                  echo "✅ JSON is valid"
-                else
-                  echo "❌ JSON is invalid"
-                fi
-              else
-                echo "❌ Decoded file is empty"
-              fi
-            else
-              echo "❌ Base64 decode failed"
-            fi
-          else
-            echo "❌ GCP_SA_KEY is NOT set"
-          fi
-          
-          echo ""
-          echo "Repository: ${{ github.repository }}"
-          echo "Event: ${{ github.event_name }}"
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t $IMAGE_URI -f docker/Dockerfile .
+          docker push $IMAGE_URI
+
+  terraform-deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -input=false
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -input=false
