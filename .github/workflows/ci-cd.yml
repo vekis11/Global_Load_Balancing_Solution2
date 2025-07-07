@@ -89,27 +89,11 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      - name: Create terraform.tfvars
+      - name: Clean Terraform State
         run: |
-          cat > terraform.tfvars << EOF
-          project_id = "${{ secrets.GCP_PROJECT_ID }}"
-          region     = "us-central1"
-          EOF
-
-            - name: Create terraform.tfvars
-        run: |
-          cat > terraform.tfvars << EOF
-          project_id = "${{ secrets.GCP_PROJECT_ID }}"
-          region     = "us-central1"
-          EOF
-
-      - name: Terraform Plan
-        run: terraform plan -input=false
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve -input=false
-
-->
+          rm -rf .terraform
+          rm -f .terraform.lock.hcl
+          terraform init
 
       - name: Create terraform.tfvars
         run: |
