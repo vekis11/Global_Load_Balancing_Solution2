@@ -89,6 +89,15 @@ jobs:
           gcloud services enable iam.googleapis.com
           echo "APIs enabled successfully"
 
+      - name: Clean Existing Resources
+        run: |
+          echo "Cleaning existing resources..."
+          # Delete existing instance templates
+          gcloud compute instance-templates list --filter="name~app-template" --format="value(name)" | xargs -I {} gcloud compute instance-templates delete {} --quiet || true
+          # Delete existing health checks
+          gcloud compute health-checks list --filter="name~app-health-check" --format="value(name)" | xargs -I {} gcloud compute health-checks delete {} --global --quiet || true
+          echo "Cleanup completed"
+
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
