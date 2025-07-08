@@ -4,7 +4,7 @@ provider "google" {
 }
 
 resource "google_compute_instance_template" "default" {
-  name         = "app-template"
+  name         = "app-template-${formatdate("YYYYMMDD-hhmmss", timestamp())}"
   machine_type = var.machine_type
   region       = var.region
 
@@ -28,7 +28,7 @@ resource "google_compute_instance_template" "default" {
 }
 
 resource "google_compute_instance_group_manager" "default" {
-  name               = "app-mig"
+  name               = "app-mig-${formatdate("YYYYMMDD-hhmmss", timestamp())}"
   base_instance_name = "app-instance"
   zone               = "${var.region}-a"
   version {
@@ -42,14 +42,14 @@ resource "google_compute_instance_group_manager" "default" {
 }
 
 resource "google_compute_health_check" "default" {
-  name               = "app-health-check"
+  name               = "app-health-check-${formatdate("YYYYMMDD-hhmmss", timestamp())}"
   http_health_check {
     port = 80
   }
 }
 
 resource "google_compute_backend_service" "default" {
-  name                  = "app-backend-service"
+  name                  = "app-backend-service-${formatdate("YYYYMMDD-hhmmss", timestamp())}"
   protocol              = "HTTP"
   port_name             = "http"
   timeout_sec           = 10
@@ -61,17 +61,17 @@ resource "google_compute_backend_service" "default" {
 }
 
 resource "google_compute_url_map" "default" {
-  name            = "app-url-map"
+  name            = "app-url-map-${formatdate("YYYYMMDD-hhmmss", timestamp())}"
   default_service = google_compute_backend_service.default.id
 }
 
 resource "google_compute_target_http_proxy" "default" {
-  name   = "app-http-proxy"
+  name   = "app-http-proxy-${formatdate("YYYYMMDD-hhmmss", timestamp())}"
   url_map = google_compute_url_map.default.id
 }
 
 resource "google_compute_global_forwarding_rule" "default" {
-  name                  = "app-forwarding-rule"
+  name                  = "app-forwarding-rule-${formatdate("YYYYMMDD-hhmmss", timestamp())}"
   target                = google_compute_target_http_proxy.default.id
   port_range            = "80"
   load_balancing_scheme = "EXTERNAL"
